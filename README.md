@@ -48,13 +48,17 @@ file_n | species_X | count_nX | 0.01
 
 Logfile goes to `STDERR`.
 
-# Graphical output
+## Graphical output
 
 `TODO`
 
-# Shiny confidence score sweep
+Plot distribution of score per species.
+
+## Shiny confidence score sweep
 
 `TODO`
+
+Shiny app to allow to adjust confidence score and see how this affects number of reads binned into (selectable set of) species.
 
 # Etymology
 
