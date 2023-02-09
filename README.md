@@ -48,6 +48,14 @@ file_n | species_X | count_nX | 0.01
 
 Logfile goes to `STDERR`.
 
+# Graphical output
+
+`TODO`
+
+# Shiny confidence score sweep
+
+`TODO`
+
 # Etymology
 
 Frakka is partly "filter Kraken", partly [Old Norse for "spear"](https://en.wiktionary.org/wiki/frakkar) and partly inspired by the Torstyverse suite of tools by [Torsten Seemann](https://github.com/tseemann) which follow a similar naming pattern.
