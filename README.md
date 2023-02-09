@@ -1,7 +1,7 @@
-# Frakka
+# frakka
 Filter Kraken output files and calculate read-level and summary confidence score metrics per classified species.
 
-Setting an appropriate Kraken2 [confidence score](https://github.com/DerrickWood/kraken2/wiki/Manual#confidence-scoring) threshold for species-level classification may appear rather arbitrary and will affect detection sensitivity. To take the guess work out of this, Frakka creates per-species confidence 
+Setting an appropriate Kraken2 [confidence score](https://github.com/DerrickWood/kraken2/wiki/Manual#confidence-scoring) threshold for species-level classification may appear rather arbitrary and will affect detection sensitivity. To take the guess work out of this, `frakka` creates per-species confidence 
 score distribution metrics and plots.
 
 # Installation
