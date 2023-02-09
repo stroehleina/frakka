@@ -10,7 +10,7 @@ score distribution metrics and plots.
 
 ## Conda
 
-`TODO conda create -n frakka frakka`
+`TODO conda create -n frakka -c bioconda frakka`
 
 # Usage
 
