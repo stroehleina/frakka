@@ -8,6 +8,10 @@ score distribution metrics and plots.
 
 `TODO`
 
+## Conda
+
+`TODO conda create -n frakka frakka`
+
 # Usage
 
 `frakka --kreport [k2.tab1,k2.tab2,k2.tab3,...] --kout [k2.out1,k2.out2,k2.out3,...] [OPTIONS]`
