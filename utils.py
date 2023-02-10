@@ -5,8 +5,8 @@ from statistics import median as median
 
 # Log a message to stderr
 def msg(*args, **kwargs):
-	now = f'[{datetime.now()}]: '
-    print(now, *args, file=sys.stderr, **kwargs)
+	now = f'[{datetime.now().isoformat(sep=" ", timespec="seconds")}]: '
+	print(now, *args, file=sys.stderr, **kwargs)
 
 
 # Log an error to stderr and quit with non-zero error code
@@ -35,12 +35,13 @@ def _readTabSep(file, type):
 		coldict = {}
 		for line in f:
 			cols = line.rstrip('\n').split('\t')
+			cols = [c.strip() for c in cols]
 			col = len(cols)
 
 			try:
-				coldict[col]+=1				
+				coldict[col] += 1				
 			except KeyError:
-				coldict[col]=1
+				coldict[col] = 1
 
 			file_lst.append(cols)
 
@@ -68,10 +69,12 @@ def readKraken(file):
 	f = _readTabSep(file, 'Kraken output')[0]
 	for line in f:
 			uc, read, taxid, kmerstr = line[0], line[1], line[2], line[4]
+			# msg(f'Calculating confidence score for read {read} (kmerstring: {kmerstr}):')
 			conf = _getConfidence(taxid, kmerstr)
 			if uc != 'U':
 				krak[read]={'taxid' : taxid, 'conf' : conf}
-    return krak
+
+	return krak
 
 
 def readKReport(file):
@@ -88,8 +91,8 @@ def readKReport(file):
 	spec_col = form - 1
 	for line in f:
 		if line[level] == 'S':
-		count, taxid, name = line[2], line[tax_col], line[spec_col]
-		report[taxid] = {'count' : count, 'name' : name}
+			count, taxid, name = line[2], line[tax_col], line[spec_col]
+			report[taxid] = {'count' : count, 'name' : name}
 
 	return report
 
@@ -115,20 +118,27 @@ def _getConfidence(taxid, kmerstr):
 	# Format: 562:13 561:4 A:31 0:1 562:3
 	# paired read data will contain a '|:|' token in this list to indicate the end of one read and the beginning of another
 	r_lst = kmerstr.split(' |:| ')
+	assert 1 <= len(r_lst) <= 2
 	conf_lst = []
 	for r in r_lst:
+		conf = 0
 		allkmers = 0
 		taxkmers = 0
-		cons_kmers = r.split(' ')
-			for k in cons_kmers:
-				run = k.split(':')
-				if run[0] != 'A':
-					allkmers+=run[1]
-					if run[0] == taxid:
-						taxkmers+=run[1]				
-		conf_lst.append(taxkmers/allkmers)
-		
-	conf = sum(conf_lst)/len(conf_lst)
+		cons_kmers = r.strip().split(' ')
+
+		for k in cons_kmers:
+			run = k.split(':')
+			if run[0] != 'A':
+				allkmers += int(run[1])
+
+				if run[0] == taxid:
+					taxkmers += int(run[1])
+
+		if allkmers != 0:
+			conf_lst.append(taxkmers/allkmers)
+
+	if 1 <= len(conf_lst) <= 2:
+		conf = sum(conf_lst)/len(conf_lst)
 
 	return conf
 
@@ -164,7 +174,7 @@ def getCounts(report_f, krak_f):
 
 
 def output(record, header=True, sep='\t', counts=False, taxid=False):
-	msg(f"Writing output for file {record[name]}")
+	msg(f"Writing output for file {record['name']}")
 
 	if header:
 		kspec = "K_spec"
@@ -181,7 +191,7 @@ def output(record, header=True, sep='\t', counts=False, taxid=False):
 		else:
 			hdlst = ['file', truespec, kspec, 'read_id', 'score']
 
-		print sep.join(hdlst)
+		print(sep.join(hdlst))
 
 	for r in record['records']:
-		print sep.join(record['records'])
+		print(sep.join([str(x) for x in r]))
