@@ -1,7 +1,7 @@
+import os
 import sys
 from datetime import datetime
-import os
-
+from statistics import median as median
 
 # Log a message to stderr
 def msg(*args, **kwargs):
@@ -11,35 +11,49 @@ def msg(*args, **kwargs):
 
 # Log an error to stderr and quit with non-zero error code
 def err(*args, **kwargs):
-    msg(*args, **kwargs)
+    msg('ERROR', *args, **kwargs)
     sys.exit(1)
 
 
-def checkPath(path):
+def _checkPath(path):
 	if not os.path.exists(path):
 		err(f'File {path} does not exist! Exiting.')
 
 
-def readTabSep(file, type):
+def _readTabSep(file, type):
 	'''
 	checks if tab-separated file exists and reads it into a list of lists
 	which it returns
 	'''
 
-	checkPath(file)
+	_checkPath(file)
 
 	with open(file, 'r') as f:
 		msg(f'Reading {type} file {file}')
-		l_of_l = []
-		first = True
+		file_lst = []
 		col = None
+		coldict = {}
 		for line in f:
 			cols = line.rstrip('\n').split('\t')
-			if first:
-				first = False
-				col = len(cols) # Return number of columns present in tab-separated file
-			l_of_l.append(cols)
-		return l_of_l, col 
+			col = len(cols)
+
+			try:
+				coldict[col]+=1				
+			except KeyError:
+				coldict[col]=1
+
+			file_lst.append(cols)
+
+		if len(coldict) == 1:
+			msg(f'Finished reading file {file}. All entries (n = {coldict[list(coldict.keys())[0]]}) have the same number of columns (n = {list(coldict.keys())[0]})')
+		else:
+			msg('File of files {file} contains different number of columns per line.')
+			msg('The following number of lines with different number of columns have been detected:')
+			for k in sorted(coldict, reverse=True):
+				print(f'\t\tcoldict[k] lines with {k} columns', file=sys.stderr)
+			err('Check your file is in the correct format and try again.')
+
+		return file_lst, col 
 
 
 def readKraken(file):
@@ -51,12 +65,12 @@ def readKraken(file):
 
 	krak = {}
 
-	f = readTabSep(file, 'Kraken output')[0]
+	f = _readTabSep(file, 'Kraken output')[0]
 	for line in f:
 			uc, read, taxid, kmerstr = line[0], line[1], line[2], line[4]
-			conf = getConfidence(taxid, kmerstr)
+			conf = _getConfidence(taxid, kmerstr)
 			if uc != 'U':
-				krak[read]={'taxid' : taxid, 'species' : '', 'conf' : conf}
+				krak[read]={'taxid' : taxid, 'conf' : conf}
     return krak
 
 
@@ -68,7 +82,7 @@ def readKReport(file):
 
 	report = {}
 
-	f,form  = readTabSep(file, 'Kraken report')
+	f,form  = _readTabSep(file, 'Kraken report')
 	level = form - 3
 	tax_col = form - 2
 	spec_col = form - 1
@@ -85,12 +99,12 @@ def fileOfFiles(file):
 	Reads a tab-separated file of report and output-file pairs specified by --fof / -f (and optionally, a third column with species identifiers)
 	and returns a list of lists to iterate over
 	'''
-	f = readTabSep(file, 'tab-separated input')[0]
+	f = _readTabSep(file, 'tab-separated input')[0]
 
 	return f
 
 
-def getConfidence(taxid, kmerstr):
+def _getConfidence(taxid, kmerstr):
 	'''
 	Reads the kmerstring and called taxid from column 5 and 3 of the Kraken standard output file (STDOUT / --output) 
 	and returns the confidence score for the read
@@ -119,7 +133,7 @@ def getConfidence(taxid, kmerstr):
 	return conf
 
 
-def getCounts(krak_f, report_f):
+def getCounts(report_f, krak_f):
 	'''
 	Implements the --counts option to return counts for each species
 	instead of confidence scores for individual reads
@@ -127,23 +141,47 @@ def getCounts(krak_f, report_f):
 
 	species = {}
 
-	krak = readKraken(krak_f)
+	res_lst = []
+
 	report = readKReport(report_f)
+	krak = readKraken(krak_f)
 
 	for read in krak:
+		taxid=krak[read]['taxid']
+		conf = krak[read]['conf']
+		try:
+			species[taxid]['read_count'] += 1
+			species[taxid]['confs'].append(conf)
+		except KeyError:
+			species[taxid]['read_count'] = 1
+			species[taxid]['confs'] = [conf]
+			species[taxid]['name'] = report[krak[read]['taxid']]['name']
+
+	for taxid in species:
+		species[taxid]['median_score'] = median(species[taxid]['confs'])
+
+	return species
 
 
-	# krak[read]={'taxid' : taxid, 'species' : '', 'conf' : conf}
-	# report[taxid] = {'count' : count, 'name' : name}
+def output(record, header=True, sep='\t', counts=False, taxid=False):
+	msg(f"Writing output for file {record[name]}")
 
-
-def output(record, name, header=True, sep='\t', counts=False, taxid=False):
-	msg(f"Writing output for file {name}")
 	if header:
+		kspec = "K_spec"
+		truespec = "true_spec"
+
+		if taxid:
+			kspec = kspec + "_taxid"
+			truespec = truespec + "_taxid"
+
+		hdlst = []
+
 		if counts:
-			# TODO add taxid functionality for headers
-			print sep.join(['file', 'K_spec_taxid', 'read_count', 'median_score'])
+			hdlst = ['file', truespec, kspec, 'read_count', 'median_score']
 		else:
-			print sep.join(['file', 'read_id', 'true_spec_taxid', 'K_spec_taxid', 'score'])
-	for r in record:
-		print sep.join(record)
+			hdlst = ['file', truespec, kspec, 'read_id', 'score']
+
+		print sep.join(hdlst)
+
+	for r in record['records']:
+		print sep.join(record['records'])
