@@ -1,4 +1,5 @@
 from utils import *
+from plot import *
 import argparse
 import sys
 import re
