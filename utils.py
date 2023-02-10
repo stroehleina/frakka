@@ -57,7 +57,7 @@ def _readTabSep(file, type):
 		return file_lst, col 
 
 
-def readKraken(file):
+def readKraken(file, score=0):
 	'''
 	Reads Kraken standard output file (STDOUT / --output) 
 	and returns a dict of all classified reads with read id as key
@@ -71,7 +71,7 @@ def readKraken(file):
 			uc, read, taxid, kmerstr = line[0], line[1], line[2], line[4]
 			# msg(f'Calculating confidence score for read {read} (kmerstring: {kmerstr}):')
 			conf = _getConfidence(taxid, kmerstr)
-			if uc != 'U':
+			if uc != 'U' and conf >= score:
 				krak[read]={'taxid' : taxid, 'conf' : conf}
 
 	return krak
@@ -138,23 +138,22 @@ def _getConfidence(taxid, kmerstr):
 			conf_lst.append(taxkmers/allkmers)
 
 	if 1 <= len(conf_lst) <= 2:
-		conf = sum(conf_lst)/len(conf_lst)
+		conf = round(sum(conf_lst)/len(conf_lst), 3)
 
 	return conf
 
 
-def getCounts(report_f, krak_f):
+def getCounts(report_f, krak_f, score=0):
 	'''
 	Implements the --counts option to return counts for each species
 	instead of confidence scores for individual reads
 	'''
 
 	species = {}
-
 	res_lst = []
 
 	report = readKReport(report_f)
-	krak = readKraken(krak_f)
+	krak = readKraken(krak_f, score=score)
 
 	for read in krak:
 		taxid=krak[read]['taxid']

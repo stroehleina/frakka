@@ -16,7 +16,7 @@ def set_parsers():
 		(comma-separated if multiple, optional, must be in same order as -k and -o files,\
 		single species provided assumes all files are same true / known species)')
 	parser.add_argument('--fof', '-f', help='Tab-separated file of one (-k, -o, -sp)-tuple per line')
-	parser.add_argument('--score', '-s', help='NOT IMPLEMENTED Confidence score threshold, only reads / counts higher than this score are reported', default=0) # TODO 
+	parser.add_argument('--score', '-s', help='Confidence score threshold, only reads / counts higher than this score are reported', default=0)
 	parser.add_argument('--counts', '-c', action='store_true', default=False, help='Report total counts per species with score > --score / -s instead of per-read reporting')
 	parser.add_argument('--taxid', '-t', action='store_true', default=False, help='Species input and output are NCBI taxIDs instead of species names')
 	parser.add_argument('--plot', '-p', action='store_true', default=False, help='NOT IMPLEMENTED Plot distribution of score per species') # TODO 
@@ -87,7 +87,7 @@ def main():
 			Check your file or remove the --taxid argument.')		
 
 		if args.counts:
-			counts = getCounts(report, out)
+			counts = getCounts(report, out, score=float(args.score))
 
 			# One line per species
 			for taxid in counts:
@@ -102,7 +102,7 @@ def main():
 		else:
 			report = readKReport(report)
 
-			krak = readKraken(out)
+			krak = readKraken(out, score=float(args.score))
 
 			for read in krak:
 				try:
@@ -132,7 +132,7 @@ def main():
 		else:
 			output(o, header=False, sep=args.delim, counts=args.counts, taxid=args.taxid)
 
-	msg('Done. Thank you for using Frakka. Please cite https://github.com/stroehleina/frakka')
+	msg('Done. Thank you for using frakka. Please cite https://github.com/stroehleina/frakka')
 
 if __name__ == "__main__":
     main()
