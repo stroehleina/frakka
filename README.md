@@ -10,20 +10,40 @@ score distribution metrics and plots.
 
 ## Conda
 
+`git clone https://github.com/stroehleina/frakka`
 `TODO conda create -n frakka -c bioconda frakka`
 
 # Usage
 
-`frakka --kreport [k2.tab1,k2.tab2,k2.tab3,...] --kout [k2.out1,k2.out2,k2.out3,...] [OPTIONS]`
+`python frakka.py --help`
 
 ```
---kreport (-k) [] - Comma-separated list of Kraken2 report files (required)
---kout (-o) [] -  Comma-separated list of corresponding Kraken2 output files (required)
---species (-sp) [] -  Comma-separated list of true species taxids / names (optional)
---fof (-f) FILE - tab-separated file of report and output file pairs (and optionally, a third column with species identifiers)
---counts (-c) BOOL - report total counts per species with score greater than the specified threshold (--score/-s) instead of per-read output
---score (-s) FLOAT - confidence score threshold [0] (optional)
---taxid (-t) BOOL - Species input and output are NCBI taxID instead of Species name
+usage: frakka.py [-h] [--version] [--kreport KREPORT] [--kout KOUT] [--species SPECIES] [--fof FOF] [--score SCORE] [--counts] [--taxid] [--plot] [--directory DIRECTORY] [--prefix PREFIX]
+                 [--delim DELIM]
+
+frakka - a tool to filter Kraken output files and calculate read-level and summary confidence score metrics per classified species
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -v         show program's version number and exit
+  --kreport KREPORT, -k KREPORT
+                        Kraken2 report file(s) (comma-separated if multiple, required) (default: None)
+  --kout KOUT, -o KOUT  Kraken2 output file(s) (comma-separated if multiple, required, must be in same order as --kreport / -k) (default: None)
+  --species SPECIES, -sp SPECIES
+                        List of corresponding true / known species names or taxids (comma-separated if multiple, optional, must be in same order as -k and -o files, single species provided assumes
+                        all files are same true / known species) (default: None)
+  --fof FOF, -f FOF     Tab-separated file of one (-k, -o, -sp)-tuple per line (default: None)
+  --score SCORE, -s SCORE
+                        Confidence score threshold, only reads / counts higher than this score are reported (default: 0)
+  --counts, -c          Report total counts per species with score > --score / -s instead of per-read reporting (default: False)
+  --taxid, -t           Species input and output are NCBI taxIDs instead of species names (default: False)
+  --plot, -p            NOT IMPLEMENTED Plot distribution of score per species (default: False)
+  --directory DIRECTORY, -d DIRECTORY
+                        NOT IMPLEMENTED Specify output directory (default: .)
+  --prefix PREFIX, -x PREFIX
+                        NOT IMPLEMENTED Specify output file prefix (default: .)
+  --delim DELIM, -del DELIM
+                        Specify output file delimiter (default: )
 ```
 
 # Output

@@ -162,12 +162,18 @@ def getCounts(report_f, krak_f, score=0):
 			species[taxid]['read_count'] += 1
 			species[taxid]['confs'].append(conf)
 		except KeyError:
-			species[taxid]['read_count'] = 1
-			species[taxid]['confs'] = [conf]
-			species[taxid]['name'] = report[krak[read]['taxid']]['name']
+			try:
+				species[taxid] = 	{
+									'read_count' : 1,
+									'confs' : [conf],
+									'name' : report[taxid]['name']
+									}
+			except KeyError:
+				if report.get(taxid, None):
+						err('Another KeyError while discarding non-species reads has occurred that should not occur. Exiting')
 
 	for taxid in species:
-		species[taxid]['median_score'] = median(species[taxid]['confs'])
+		species[taxid]['median_score'] = round(median(species[taxid]['confs']), 3)
 
 	return species
 
