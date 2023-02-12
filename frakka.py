@@ -1,5 +1,5 @@
-from utils import *
-from plot import *
+from utils import FrakkaUtils as fu
+import plot
 import argparse
 import sys
 import re
@@ -7,7 +7,7 @@ import re
 VERSION = '0.0.1'
 
 def set_parsers():
-
+	'''Sets command line argument options and parses them'''
 	parser = argparse.ArgumentParser(description='frakka - a tool to filter Kraken output files and calculate read-level\
 		and summary confidence score metrics per classified species',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument('--version', '-v', action='version', version='%(prog)s ' + VERSION)
@@ -16,6 +16,7 @@ def set_parsers():
 	parser.add_argument('--species', '-sp', help='List of corresponding true / known species names or taxids\
 		(comma-separated if multiple, optional, must be in same order as -k and -o files,\
 		single species provided assumes all files are same true / known species)')
+	parser.add_argument('--sp_only', '-spo', help='NOT IMPLEMENTED Report only matches to true/known species (--species) option') # TODO
 	parser.add_argument('--fof', '-f', help='Tab-separated file of one (-k, -o, -sp)-tuple per line')
 	parser.add_argument('--score', '-s', help='Confidence score threshold, only reads / counts higher than this score are reported', default=0)
 	parser.add_argument('--counts', '-c', action='store_true', default=False, help='Report total counts per species with score > --score / -s instead of per-read reporting')
@@ -25,16 +26,18 @@ def set_parsers():
 	parser.add_argument('--prefix', '-x', default='.', help='NOT IMPLEMENTED Specify output file prefix') # TODO 
 	parser.add_argument('--delim', '-del', default='\t', help='Specify output file delimiter')
 
-
 	args = parser.parse_args()
-
 	return args, parser
 
 def main():
 
+	msg = fu.msg
+	err = fu.err
+
 	args, parser = set_parsers()
 	file_s = []
 	k_files = {args.kreport, args.kout}
+	
 	try:
 		k_files.remove(None)
 	except KeyError:
@@ -45,7 +48,7 @@ def main():
 		err('You need to specify either both --kreport and --kout or alteratively, --fof. Exiting.')
 		
 	if args.fof:
-		file_s = fileOfFiles(args.fof)
+		file_s = fu.fileOfFiles(args.fof)
 		if args.species and len(file_s[0]) == 3:
 			err('Species provided in column 3 of file specified via --fof but also via --species. Provide one or the other. Exiting')
 	else:
@@ -74,7 +77,6 @@ def main():
 
 			file_s.append(file_lst)
 
-	# List of output records
 	outlst = []
 
 	# process individual file records
@@ -88,11 +90,10 @@ def main():
 			Check your file or remove the --taxid argument.')		
 
 		if args.counts:
-			counts = getCounts(report, out, score=float(args.score))
+			counts = fu.getCounts(report_f=report, krak_f=out, score=float(args.score))
 
 			# One line per species
 			for taxid in counts:
-
 				if args.taxid:
 					kspec = taxid
 				else:
@@ -101,9 +102,8 @@ def main():
 				rec = [report, truespec, kspec, counts[taxid]['read_count'], counts[taxid]['median_score']]
 				rec_lst.append(rec)
 		else:
-			report = readKReport(report)
-
-			krak = readKraken(out, score=float(args.score))
+			report = fu.readKReport(report)
+			krak = fu.readKraken(out, score=float(args.score))
 
 			for read in krak:
 				try:
@@ -120,18 +120,15 @@ def main():
 					if report.get(krak[read]['taxid'], None):
 						err('Another KeyError has occurred that should not occur. Exiting')
 
-
-
 		outrec = {'name' : f[0].split('/')[-1:][0], 'records' : rec_lst}
-
 		outlst.append(outrec)
 
 
 	for c,o in enumerate(outlst):
 		if c == 0:
-			output(o, header=True, sep=args.delim, counts=args.counts, taxid=args.taxid)
+			fu.output(o, header=True, sep=args.delim, counts=args.counts, taxid=args.taxid)
 		else:
-			output(o, header=False, sep=args.delim, counts=args.counts, taxid=args.taxid)
+			fu.output(o, header=False, sep=args.delim, counts=args.counts, taxid=args.taxid)
 
 	msg('Done. Thank you for using frakka. Please cite https://github.com/stroehleina/frakka')
 

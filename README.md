@@ -6,11 +6,12 @@ score distribution metrics and plots.
 
 # Installation
 
-`TODO`
+## GitHub
+
+`git clone https://github.com/stroehleina/frakka`
 
 ## Conda
 
-`git clone https://github.com/stroehleina/frakka`
 `TODO conda create -n frakka -c bioconda frakka`
 
 # Usage
@@ -61,7 +62,7 @@ file_n | read_m | species_X | species_Y | 0.01
 
 Tab-separated output to `STDOUT`, when `--counts` (and optionally, `--score`) are specified:
 
-`file` | `K_spec_taxid` | `read_count` (of reads above `--score`) | `median_score` (of reads above `--score`)
+`file` | `K_spec_taxid` | `read_count`<br />(of reads above `--score`) | `median_score`<br />(of reads above `--score`)
 --- | --- | --- | --- 
 file_1 | species_A | count_1A | 0.6
 file_1 | species_B | count_1B | 0.4
