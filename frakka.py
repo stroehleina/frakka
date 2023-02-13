@@ -1,8 +1,10 @@
 from utils import FrakkaUtils as fu
+from datetime import datetime
 import plot
 import argparse
 import sys
 import re
+
 
 VERSION = '0.0.1'
 
@@ -21,8 +23,8 @@ def set_parsers():
 	parser.add_argument('--score', '-s', help='Confidence score threshold, only reads / counts higher than this score are reported', default=0)
 	parser.add_argument('--counts', '-c', action='store_true', default=False, help='Report total counts per species with score > --score / -s instead of per-read reporting')
 	parser.add_argument('--taxid', '-t', action='store_true', default=False, help='Species input and output are NCBI taxIDs instead of species names')
-	parser.add_argument('--plot', '-p', action='store_true', default=False, help='NOT IMPLEMENTED Plot distribution of score per species') # TODO 
-	parser.add_argument('--directory', '-d', default='.', help='NOT IMPLEMENTED Specify output directory') # TODO 
+	parser.add_argument('--plot', '-p', action='store_true', default=False, help='Plot distribution of score per species') # TODO 
+	parser.add_argument('--directory', '-d', default=f'frakka_{re.sub(':', '_', datetime.now().isoformat(sep="_", timespec="seconds"))}', help='Specify output directory')
 	parser.add_argument('--prefix', '-x', default='.', help='NOT IMPLEMENTED Specify output file prefix') # TODO 
 	parser.add_argument('--delim', '-del', default='\t', help='Specify output file delimiter')
 
