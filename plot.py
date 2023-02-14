@@ -11,29 +11,6 @@ import os
 msg=Logger.msg
 err=Logger.err
 
-class DirHandler:
-	'''A class for checking / creating output directories'''
-
-	def __init__(self, argsdir):
-		self.dir = '/'.join([os.getcwd(), argsdir])
-		# TODO make this a list of dirs so we can create a separate directory for each pair of files?
-
-	def makeOutputDir(self):
-		'''Checks if plot output directory exists and creates one if it doesn't'''
-		if os.path.exists(self.dir) and os.path.isdir(self.dir):
-			msg(f'Found output directory {self.dir}. Will save plots there.')
-			return self.dir
-
-		else:
-			if os.path.exists(self.dir) and not os.path.isdir(self.dir):
-				err(f'The path {self.dir} for the output directory you have provided exists but is a file, not a directory. Exiting')
-			try:
-				msg(f'Creating output directory {self.dir}.')
-				os.mkdir(self.dir)
-				return self.dir
-			except PermissionError:
-				err(f'You do not have permission to create directory {self.dir}. Exiting.') 
-
 class Plotter:
 	'''A class for creating plots from frakka output objects'''
 	def __init__(self, dest):
