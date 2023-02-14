@@ -18,6 +18,9 @@ class Logger:
 		cls.msg('ERROR', *args, **kwargs)
 		sys.exit(1)
 
+msg = Logger.msg
+err = Logger.err
+
 class DirHandler:
 	'''A class for checking / creating output directories'''
 
@@ -53,19 +56,20 @@ class FileReader:
 
 		if ftype == 'krak':
 			if 'score' not in kwargs.keys():
-				raise ValueError(f'INTERNAL ERROR: Kraken file {self.file} provided but not cut-off score specified!')
-			self.score = score
+				raise ValueError(f'INTERNAL ERROR: Kraken file {self.file} provided but no cut-off score specified!')
+			self.score = kwargs['score']
 
-		self.type = ftype
+		self.ftype = ftype
 
 	def _checkPath(self):
 		'''A function to check that a FileReader object has a correct path'''
+		# TODO if absolute path is given, make sure you aren't concatenating cwd and an absolute path
 		path = '/'.join([self.cwd, self.file])
 		if not os.path.exists(path):
-			Logger.err(f'File {path} does not exist! Exiting.')
+			err(f'File {path} does not exist! Exiting.')
 		return path
 
-	def _readTabSep(self, msg):
+	def _readTabSep(self, message):
 		'''
 		checks if tab-separated file exists and reads it into a list of lists
 		which it returns
@@ -74,7 +78,7 @@ class FileReader:
 		path = self._checkPath()
 
 		with open(path, 'r') as f:
-			Logger.msg(f'Reading {msg} file {self.file}')
+			msg(f'Reading {message} file {self.file}')
 			file_lst = []
 			col = None
 			coldict = {}
@@ -91,14 +95,14 @@ class FileReader:
 				file_lst.append(cols)
 
 			if len(coldict) == 1:
-				Logger.msg(f'Finished reading file {file}. All entries (n = {coldict[list(coldict.keys())[0]]}) have the same number of columns (n = {list(coldict.keys())[0]})')
+				msg(f'Finished reading file {path}. All entries (n = {coldict[list(coldict.keys())[0]]}) have the same number of columns (n = {list(coldict.keys())[0]})')
 			else:
-				Logger.msg('File of files {file} contains different number of columns per line.')
-				Logger.msg('The following number of lines with different number of columns have been detected:')
+				msg(f'File of files {path} contains different number of columns per line.')
+				msg('The following number of lines with different number of columns have been detected:')
 
 				for k in sorted(coldict, reverse=True):
 					print(f'\t\tcoldict[k] lines with {k} columns', file=sys.stderr)
-				Logger.err('Check your file is in the correct format and try again.')
+				err('Check your file is in the correct format and try again.')
 
 			return file_lst, col
 
@@ -107,28 +111,27 @@ class FileReader:
 		Reads a tab-separated file of report and output-file pairs specified by --fof / -f (and optionally, a third column with species identifiers)
 		and returns a list of lists to iterate over
 		'''
-		f = self._readTabSep('file-of-files')[0]
+		f = self._readTabSep(message='file-of-files')[0]
 
 		return f
 
 	def readKraken(self):
 		'''
-		Reads Kraken standard output file (STDOUT / --output) 
-		and returns a dict of all classified reads with read id as key
-		and a dict as value (with keys taxid:, species: and kmerstr:)	
+		Reads a read-level Kraken output file 
+		and returns a list of KrakenLine objects	
 		'''
 		if self.ftype != 'krak':
 			raise TypeError(f'INTERNAL ERROR: Cannot call method readKraken() on a file with ftype {self.ftype}!')
 
 		krak = []
 
-		f = self._readTabSep('Kraken output')[0]
+		f = self._readTabSep(message='Kraken output')[0]
 		for line in f:
 			kl = KrakenLine(uc=line[0], read_id=line[1], taxid=line[2], kmerstr=line[4]) 
 			if kl.uc != 'U' and kl.score >= self.score:
 				krak.append(kl)
 
-		# Return a list of KrakenLine objects
+		# Returns a list of KrakenLine objects
 		return krak
 		
 	def readKReport(self):
@@ -140,7 +143,7 @@ class FileReader:
 			raise TypeError(f'INTERNAL ERROR: Cannot call method readKReport() on a file with ftype {self.ftype}! ftype "rep" expected!')
 
 		report = {}
-		f, form  = self._readTabSep('Kraken report')
+		f, form  = self._readTabSep(message='Kraken report')
 		level = form - 3
 		tax_col = form - 2
 		spec_col = form - 1
@@ -160,7 +163,6 @@ class Counter:
 		instead of confidence scores for individual reads
 		specmap is a return object from readKReport() call, mapping taxid to species
 		kll is a return object from readKraken() call
-		FIXME how do we pass file name?
 		'''
 
 		species = {}
@@ -179,19 +181,20 @@ class Counter:
 										}
 				except KeyError:
 					if specmap.get(kl.taxid, None):
-							Logger.err('Another KeyError while discarding non-species reads has occurred that should not occur. Exiting.')
+							err('Another KeyError while discarding non-species reads has occurred that should not occur. Exiting.')
 
 		for tx in species:
+			name = species[tx]['name']
 			read_count = species[tx]['read_count']
 			median_score = round(median(species[tx]['scores']), 3)
-			cr = CountRecord(file=file, truespec=truespec, kspec=tx, read_count=read_count, median_score=median_score)
+			cr = CountRecord(file=file, truespec=truespec, kspec=tx, species=name, read_count=read_count, median_score=median_score)
 			result.append(cr)
 
 		return result
 
 class KrakenLine:
 	'''A class representing a single line of Kraken output file'''
-	def __init__(self, uc, read_id, taxid, kmerstr)
+	def __init__(self, uc, read_id, taxid, kmerstr):
 		self.uc = uc
 		self.read_id = read_id
 		self.taxid = taxid
@@ -237,18 +240,18 @@ class Record:
 	def __init__(self, file, truespec, kspec):
 		self.file = file
 		self.truespec = truespec
-		# TODO we must be able to get the truespec from the user input
 		self.kspec = kspec
 
 class CountRecord(Record):
 	'''A class that represents a species-read_count object'''
-	def __init__(self, file, truespec, kspec, read_count, median_score):
+	def __init__(self, file, truespec, kspec, species, read_count, median_score):
 		super().__init__(file, truespec, kspec)
+		self.species = species
 		self.read_count = read_count
 		self.median_score = median_score
 
 	def join(self, sep):
-		return sep.join([self.file, self.truespec, self.kspec, self.read_count, self.median_score])
+		return sep.join([self.file, self.truespec, self.kspec, str(self.read_count), str(self.median_score)])
 
 class ReadRecord(Record):
 	'''A class that represents a species-read-kmerstring-confidence score object'''
@@ -258,12 +261,12 @@ class ReadRecord(Record):
 		self.score = score
 
 	def join(self, sep):
-		return sep.join([self.file, self.truespec, self.kspec, self.read_id, self.score])
+		return sep.join([self.file, self.truespec, self.kspec, str(self.read_id), str(self.score)])
 
 class Output:
 	'''A class for output objects (lines to be printed)'''
 
-	def __init__(self, record, header=True, sep='\t', counts=False, taxid=False):
+	def __init__(self, record, isHeader=False, sep='\t', counts=False, useTaxid=False):
 		self.isHeader = isHeader
 		self.useTaxid = useTaxid
 		self.sep = sep
@@ -281,7 +284,8 @@ class Output:
 			else:
 				self.record = self.sep.join(['file', self.truespec, self.kspec, 'read_id', 'score'])
 		else:
-			self.record = record.join(self.sep)
+			self.record = record
 
 	def printRecord(self):
 		print(self.record)
+		# TODO file destination

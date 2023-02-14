@@ -4,6 +4,7 @@ from datetime import datetime
 import argparse
 import sys
 import re
+import os
 
 VERSION = '0.0.1'
 
@@ -23,7 +24,7 @@ def set_parsers():
 	parser.add_argument('--counts', '-c', action='store_true', default=False, help='Report total counts per species with score > --score / -s instead of per-read reporting')
 	parser.add_argument('--taxid', '-t', action='store_true', default=False, help='Species input and output are NCBI taxIDs instead of species names')
 	parser.add_argument('--plot', '-p', action='store_true', default=False, help='Plot distribution of score per species')
-	parser.add_argument('--directory', '-d', default=f'frakka_{re.sub(':', '_', datetime.now().isoformat(sep="_", timespec="seconds"))}', help='Specify output directory')
+	parser.add_argument('--directory', '-d', default=f'frakka_{re.sub(":", "_", datetime.now().isoformat(sep="_", timespec="seconds"))}', help='Specify output directory')
 	parser.add_argument('--prefix', '-x', default='.', help='NOT IMPLEMENTED Specify output file prefix') # TODO 
 	parser.add_argument('--delim', '-del', default='\t', help='Specify output file delimiter')
 
@@ -83,88 +84,73 @@ def main():
 
 			file_s.append(file_lst)
 
-	outlst = [] # FIXME 
+	outlst = []
 
 	# process individual file records
 	for f in file_s:
-		rec_lst = [] # FIXME
-
+		rec_lst = []
 		truespec = f[2]
 
-		if re.match('[^0-9]', args.truespec) and truespec != 'N/A' and args.taxid:
+		if ((args.species and re.match('[^0-9]', args.species)) or re.match('[^0-9]', truespec)) and truespec != 'N/A' and args.taxid:
 			err('--taxid has been provided but input via --species or --fof (column 3) contain non-numerical characters.\
 			Did you accidentally provide species names instead?\
 			Check your file or remove the --taxid argument.')	
 
 		report = FileReader(cwd=os.getcwd(), file=f[0], ftype='rep')
-		report_objs = report.readKReport() # TODO additional arguments?
+		specmap = report.readKReport()
 
-		krak = FileReader(cwd=os.getcwd(), file=f[1], ftype='krak')
-		krak_objs = krak.readKraken(score=float(args.score)) # TODO additional arguments?	
+		krak = FileReader(cwd=os.getcwd(), file=f[1], ftype='krak', score=float(args.score))
+		kll = krak.readKraken()
 
 		if args.counts:
-			counts = Counter.getCounts(report_f=report, krak_f=out, score=float(args.score)) # FIXME
-			
+			# Counter.getCounts() returns a list of CountRecord objects
+			counts = Counter.getCounts(specmap=specmap, kll=kll, truespec=truespec, file=f[1])
 
-			# One line per species
-			for taxid in counts:
+			for cr in counts:
+				if not args.taxid:
+					cr.kspec = cr.species
+
+				rec_lst.append(cr.join(args.delim))
+
+		else:
+
+			# Create a ReadRecord object for each KrakenLine in kll
+			for kl in kll:
+				kspec = specmap[kl.taxid]
+
 				if args.taxid:
-					kspec = taxid
-				else:
-					kspec = counts[taxid]['name']
+					kspec = kl.taxid
 
-				rec = [report, truespec, kspec, counts[taxid]['read_count'], counts[taxid]['median_score']]
-				rec_lst.append(rec) # FIXME
-		else:
+				rec = ReadRecord(file=f[1], truespec=truespec, kspec=kspec, read_id=kl.read_id, score=kl.score)
+				rec_lst.append(rec.join(args.delim))
 
-
-			for read in krak:
-				try:
-					kspec = report[krak[read]['taxid']]['name']
-					conf = krak[read]['conf']
-
-					if args.taxid:
-						kspec = krak[read]['taxid']
-
-					rec = [f[0], truespec, kspec, read, conf]
-					rec_lst.append(rec) # FIXME
-				except KeyError:
-					# msg(f'Read {read} classified higher than species level (taxid: {krak[read]["taxid"]}). Skipping.')
-					if report.get(krak[read]['taxid'], None):
-						err('Another KeyError has occurred that should not occur. Exiting')
-
-		outrec = {'name' : f[0].split('/')[-1:][0], 'records' : rec_lst} # FIXME
-		outlst.append(outrec) # FIXME
+		outlst += rec_lst
 
 
-	for c,o in enumerate(outlst): # FIXME
+	for c,o in enumerate(outlst):
 		if c == 0:
-			fu.output(o, header=True, sep=args.delim, counts=args.counts, taxid=args.taxid) # FIXME 
-			# FIXME does this not print the first data line?
-			# FIXME Or does it print two lines at once (expected behaviour)?
-		else:
-			fu.output(o, header=False, sep=args.delim, counts=args.counts, taxid=args.taxid) # FIXME 
+			header = Output(record=None, isHeader=True, sep=args.delim, counts=args.counts, useTaxid=args.taxid)
+			header.printRecord()
 
-		# FIXME define output directory for printing output lines
-		# 	# FIXME output() was called on a list of records whereas now it should be called on a single element
-		# 	for r in record['records']:
-		# 		print(sep.join([str(x) for x in r]))
+		out = Output(record=o, sep=args.delim, useTaxid=args.taxid)
+		out.printRecord()
+		# TODO define output directory for printing output lines
 
+	# TODO
+	# if args.plot:
 
-	if args.plot:
-
-		if args.counts:
-			# Create plots for summarised counts
-			# FIXME create object
-			CountPlotter.plot()
-			# FIXME when supplying multiple files we must plot this once per file
-			# iterate over files (we have a file name for this)
-			# iterate over line objects (for printing output)
-			# pass list of line objects to this function (we don't need to iterate over it in here)
+	# 	if args.counts:
+	# 		# Create plots for summarised counts
+	# 		# FIXME create object
+	# 		CountPlotter.plot()
+	# 		# FIXME when supplying multiple files we must plot this once per file
+	# 		# iterate over files (we have a file name for this)
+	# 		# iterate over line objects (for printing output)
+	# 		# pass list of line objects to this function (we don't need to iterate over it in here)
 
 
-		else:
-			# Create distribution plot for reads
+	# 	else:
+	# 		# Create distribution plot for reads
 
 
 	msg('Done. Thank you for using frakka. Please cite https://github.com/stroehleina/frakka')

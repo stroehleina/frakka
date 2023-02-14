@@ -18,14 +18,14 @@ class Plotter:
 
 class CountPlotter(Plotter):
 	'''A Plotter to plot per-species confidence summaries'''
-		def __init__(self, outdir, file, counts, other_co=0, drop=0, cutoff=0):
-			super().__init__(outdir)
-			self.counts = counts
-			self.file = file
-			self.counts = counts
-			self.other_co = other_co
-			self.drop = drop
-			self.cutoff = cutoff
+	def __init__(self, outdir, file, counts, other_co=0, drop=0, cutoff=0):
+		super().__init__(outdir)
+		self.counts = counts
+		self.file = file
+		self.counts = counts
+		self.other_co = other_co
+		self.drop = drop
+		self.cutoff = cutoff
 
 	def plot(self):
 		'''Reads a list of CountsRecord objects and creates a plot from each'''
@@ -71,7 +71,7 @@ class CountPlotter(Plotter):
 		ax.set_yticks(y_pos, labels=species)
 		ax.invert_yaxis()
 		for i, v in enumerate(plt_counts):
-    		ax.text(v + 100, i+1, str(v), ha='left', va='center')
+			ax.text(v + 100, i+1, str(v), ha='left', va='center')
 		ax.set_xlabel('Read counts')
 		ax.set_title(f'Distribution of reads per Species with confidence score > {self.cutoff}')
 
