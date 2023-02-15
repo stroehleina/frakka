@@ -1,7 +1,7 @@
 import os
 import sys
 from datetime import datetime
-from statistics import median as median
+from statistics import median
 
 class Logger:
 	'''A class that provides basic logging functions'''

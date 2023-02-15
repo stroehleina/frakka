@@ -1,5 +1,5 @@
-from utils import Logger, DirHandler, FileReader, Counter, Output
-from plot import CountPlotter
+from utils import Logger, DirHandler, FileReader, Counter, Output, ReadRecord
+from plot import CountPlotter, ReadPlotter
 from datetime import datetime
 import argparse
 import sys
@@ -27,6 +27,7 @@ def set_parsers():
 	parser.add_argument('--directory', '-d', default=f'frakka_{re.sub(":", "_", datetime.now().isoformat(sep="_", timespec="seconds"))}', help='Specify output directory')
 	parser.add_argument('--prefix', '-x', default='.', help='NOT IMPLEMENTED Specify output file prefix') # TODO 
 	parser.add_argument('--delim', '-del', default='\t', help='Specify output file delimiter')
+	# TODO add --minreads argument
 
 	args = parser.parse_args()
 	return args, parser
@@ -119,10 +120,14 @@ def main():
 
 		else:
 
-			# scores = []
+			scores = []
 			# Create a ReadRecord object for each KrakenLine in kll
 			for kl in kll:
-				kspec = specmap[kl.taxid]
+				try:
+					kspec = specmap[kl.taxid]
+				except KeyError:
+					pass
+					# msg(f'Read {kl.read_id} classified higher than species level (taxid: {kl.taxid}). Skipping.')
 
 				if args.taxid:
 					kspec = kl.taxid
@@ -130,14 +135,12 @@ def main():
 				rec = ReadRecord(file=f[1], truespec=truespec, kspec=kspec, read_id=kl.read_id, score=kl.score)
 				rec_lst.append(rec.join(args.delim))
 
-			# 	if args.plot:
-			# 		scores.append(rec)
+				if args.plot:
+					scores.append(rec)
 
-			# #TODO read plotting
-			# # pass a list of ReadRecord objects
-			# if args.plot:
-			# 	rp = ReadPlotter(scores=scores)
-			# 	rp.plot()
+			if args.plot:
+				rp = ReadPlotter(outdir=args.directory, file=f[0], rcl=scores, score=args.score)
+				rp.plot()
 
 		outlst += rec_lst
 

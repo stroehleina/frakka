@@ -1,12 +1,12 @@
 from utils import Logger
 from utils import CountRecord
-# from utils import ReadRecord # FIXME
-# from utils import Output # FIXME is this needed if all we do is pass around Output objects but do not create new ones? 
-import operator
+from math import log, ceil
+from statistics import median
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 import sys
 import os
-from math import log
 
 # Importing messaging and error methods from FrakkaUtils
 msg=Logger.msg
@@ -14,18 +14,18 @@ err=Logger.err
 
 class Plotter:
 	'''A class for creating plots from frakka output objects'''
-	def __init__(self, outdir):
+	def __init__(self, outdir, file, other_co, drop, score):
 		self.outdir = outdir
+		self.file = file
+		self.other_co = other_co
+		self.drop = drop
+		self.score = score
 
 class CountPlotter(Plotter):
 	'''A Plotter to plot per-species confidence summaries'''
 	def __init__(self, outdir, file, counts, other_co=0, drop=0, score=0):
-		super().__init__(outdir)
-		self.file = file
+		super().__init__(outdir, file, other_co, drop, score)
 		self.counts = counts
-		self.other_co = other_co
-		self.drop = drop
-		self.score = score
 
 	def plot(self):
 		'''Reads a list of CountsRecord objects and creates a plot from each'''
@@ -101,21 +101,90 @@ class CountPlotter(Plotter):
 		plt.savefig(figpath)
 
 class ReadPlotter(Plotter):
-	'''A Plotter to plot per-file read confidence distributions'''
-	def __init__(self, scores):
-		self.scores = scores
-		# TODO a list of scores / ReadCount objects
-
+	'''A Plotter to plot per-file (handled in main) read confidence distributions'''
+	def __init__(self, outdir, file, rcl, other_co=0, drop=0, score=0):
+		super().__init__(outdir, file, other_co, drop, score)
+		# a list of ReadRecord objects
+		self.rcl = rcl
+		
 	def plot(self):
-		'''Reads a list of ReadsOut objects (which have a confidence score and a species and a taxid)'''
+		'''Reads a list of ReadRecord objects (which have a confidence score and a species and a taxid)'''
 
-		# FIXME splitting this by species (i.e. all, species_1, species_2, species_3 etc.)
-		# TODO allow to filter for input species only
+		# Non-redundant set of all species present in the list of read records
+		# species = set([rc.kspec for rc in rcl]) # don't need this we will just fill dynamically by iterating over all ReadRecords
 
-		pass
-		# TODO density plot, one for each species, confidence score on x axis density on y axis
-		# TODO Median as vertical line
-		# TODO Cut-off in title
-		# TODO file name in title
-		# TODO Species name in title
-		# TODO name file according to species + taxid + cut-off
+		species = {}
+
+		for rc in self.rcl:
+			# file, truespec, kspec, read_id, score
+			# TODO allow to filter for truespec only
+			# TODO color addition for truespec
+			try:
+				species[rc.kspec]['scores'].append(rc.score)
+			except KeyError:
+				species[rc.kspec] = {'scores' : [rc.score]}
+
+		for s in list(species):
+
+			# remove species for which the length of the list of values is shorter than self.drop (--minreads)
+			if len(species[s]['scores']) <= self.drop:
+				# msg(f'Length of the score list for species {s} is {len(species[s]["scores"])}. Deleting record.')
+				del species[s]
+			else:
+				try:
+					species['All']['scores'] += species[s]['scores']
+				except KeyError:
+					species['All'] = {'scores' : species[s]['scores']}
+
+			# concatenate all lists of values from species for which the length of the list is shorter than other_co=0
+			if len(species[s]['scores']) <= self.other_co:
+				species['Other']['scores'] += species[s]['scores']
+				try:
+					species['Other']['scores'] += species[s]['scores']
+				except KeyError:
+					species['Other'] = {'scores' : species[s]['scores']}
+
+			species[s]['median'] = round(median(species[s]['scores']), 2)
+
+		if 'All' in species.keys():
+			species['All']['median'] = round(median(species[s]['scores']), 2)
+		else:
+			err(f'No reads were added for plotting, try reducing the minimal required read count {self.drop} per species (set via --minreads).')
+
+		if 'Other' in species.keys():
+			species['Other']['median'] = round(median(species[s]['scores']), 2)
+
+		# FIXME All should always be the first plot
+		# FIXME All median does not seem to be correct (too many added? or not enough added?)
+
+		# sort species by length of scores list
+		species = dict(sorted(species.items(), key=lambda e: len(e[1]['scores']), reverse=True))
+
+		# Create long format pandas object and feed that to displot (should automatically create the facetting we want)
+		longlst = []
+		for s in species:
+			for c in species[s]['scores']:
+				longlst.append({'species' : s, 'score' : c, 'median' : species[s]['median']})
+
+		plot_df = pd.DataFrame(longlst)
+
+		plot = sns.displot(plot_df, x='score', col='species', kind='kde', col_wrap=3, color='black', facet_kws={'sharey': False, 'sharex' : False}, warn_singular=False)
+
+		title_f = self.file.split('/')[-1]
+		plot.fig.subplots_adjust(top=0.95)
+		plot.fig.suptitle(f'Confidence score distribution for file {title_f} (score cut-off: {self.score})')
+		plot.set(xlim=(0, 1))
+		plot.set_titles(col_template = '{col_name}', fontstyle='italic')
+		plot.set_axis_labels('Confidence score')
+		spec_median = plot_df[["species", "median"]].drop_duplicates()
+		axes = plot.fig.axes
+
+		for i,ax in enumerate(axes):
+			ax.axvline(spec_median.iloc[i]['median'], color='red')
+
+		# chop file ending, replace all "." by "__" and add .pdf
+		outfile = '__'.join(self.file.split('/')[-1].split('.')[:-1]) + f'_species_distr_{self.score}.pdf'
+
+		figpath = '/'.join([self.outdir, outfile])
+		msg(f'Saving filtered distribution plots for {len(axes)} species (including "All" and "Other" categories, if specified) for file {self.file} to {figpath}')
+		plot.figure.savefig(figpath)
