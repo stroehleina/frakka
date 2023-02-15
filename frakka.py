@@ -112,8 +112,14 @@ def main():
 
 				rec_lst.append(cr.join(args.delim))
 
+			if args.plot:
+				#TODO implement other_co=0 and drop=0
+				cp = CountPlotter(outdir=args.directory, file=f[0], counts=counts, score=args.score)
+				cp.plot()
+
 		else:
 
+			# scores = []
 			# Create a ReadRecord object for each KrakenLine in kll
 			for kl in kll:
 				kspec = specmap[kl.taxid]
@@ -123,6 +129,15 @@ def main():
 
 				rec = ReadRecord(file=f[1], truespec=truespec, kspec=kspec, read_id=kl.read_id, score=kl.score)
 				rec_lst.append(rec.join(args.delim))
+
+			# 	if args.plot:
+			# 		scores.append(rec)
+
+			# #TODO read plotting
+			# # pass a list of ReadRecord objects
+			# if args.plot:
+			# 	rp = ReadPlotter(scores=scores)
+			# 	rp.plot()
 
 		outlst += rec_lst
 
@@ -135,23 +150,6 @@ def main():
 		out = Output(record=o, sep=args.delim, useTaxid=args.taxid)
 		out.printRecord()
 		# TODO define output directory for printing output lines
-
-	# TODO
-	# if args.plot:
-
-	# 	if args.counts:
-	# 		# Create plots for summarised counts
-	# 		# FIXME create object
-	# 		CountPlotter.plot()
-	# 		# FIXME when supplying multiple files we must plot this once per file
-	# 		# iterate over files (we have a file name for this)
-	# 		# iterate over line objects (for printing output)
-	# 		# pass list of line objects to this function (we don't need to iterate over it in here)
-
-
-	# 	else:
-	# 		# Create distribution plot for reads
-
 
 	msg('Done. Thank you for using frakka. Please cite https://github.com/stroehleina/frakka')
 
