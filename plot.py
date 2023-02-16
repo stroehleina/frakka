@@ -23,7 +23,7 @@ class Plotter:
 
 class CountPlotter(Plotter):
 	'''A Plotter to plot per-species confidence summaries'''
-	def __init__(self, outdir, file, counts, other_co=0, drop=0, score=0):
+	def __init__(self, outdir, file, counts, other_co=90, drop=0, score=0):
 		super().__init__(outdir, file, other_co, drop, score)
 		self.counts = counts
 
@@ -31,9 +31,9 @@ class CountPlotter(Plotter):
 		'''Reads a list of CountsRecord objects and creates a plot from each'''
 
 		# Applying minimum read count (drop species with less than drop reads)
-		msg(f'Applying minium read count cut-off. Of {len(self.counts)} species, those with less than {self.drop} reads will not be plotted.')
+		msg(f'Applying minimum read count cut-off. Of {len(self.counts)} species, those with less than {self.drop} reads will not be plotted.')
 		self.counts = [c for c in self.counts if c.read_count >= self.drop]
-		msg(f'Applied minium read count cut-off. {len(self.counts)} species remaining.')
+		msg(f'Applied minimum read count cut-off. {len(self.counts)} species remaining.')
 
 		# Merging counts for low-abundance species read_counts
 		msg(f'Merging species with read count below {self.other_co} into category "Other".')
@@ -43,11 +43,11 @@ class CountPlotter(Plotter):
 		self.counts = [c for c in self.counts if c.read_count >= self.other_co]
 
 		if self.other_co != 0:
-			cr = CountRecord(file=self.file, truespec='Other', kspec='Other', read_count=other_sum, median_score='')
+			cr = CountRecord(file=self.file, truespec='Other', kspec='Other', species='Other', read_count=other_sum)
 			# INFO cannot provide median of the merged "Other" category
 			# INFO There is not a way to calculate the median based on medians of subsets of the whole and still be statistically accurate.
 			# INFO We also cannot use the means of the subsets, given that they are not of equal size.
-			self.counts = [self.counts, cr]
+			self.counts += [cr]
 
 		plot_lst = []
 		# Sort the list of counts objects by read_count
@@ -57,7 +57,7 @@ class CountPlotter(Plotter):
 			if c.kspec == '9606' or c.kspec == 'Homo sapiens':
 				color='darkred'
 
-			if c.kspec == c.truespec:
+			if c.kspec == c.truespec and c.kspec != 'Other':
 				color='darkgreen'
 
 			plot_lst.append({'name' : c.kspec, 'read_count' : int(c.read_count), 'color' : color})
@@ -72,6 +72,14 @@ class CountPlotter(Plotter):
 		max_name = len(sorted(plot_lst, key=lambda e: len(e['name']), reverse=True)[0]['name'])
 
 		plt.rcdefaults()
+		msg(f'590 pixels corresponds to:')
+		msg(f'5 + 0.1 * max_name = {5 + 0.1 * max_name}')
+		msg(f'80275 pixels corresponds to:')
+		msg(f'0.25 * len(plot_lst) = {0.25 * len(plot_lst)}')
+
+		# maximum is 65536 pixels
+		# TODO reduced dpi?
+
 		ax = plt.subplots(figsize=(5 + 0.1 * max_name, 0.25 * len(plot_lst)))[1]
 		ax.set_xbound(lower=1, upper=max_rc)
 		plt.xscale('log', base=10)
@@ -85,7 +93,7 @@ class CountPlotter(Plotter):
 		ax.set_yticks(y_pos, labels=species, fontstyle='italic')
 		ax.invert_yaxis()
 		ax.set_xlabel('Read counts')
-		ax.set_title(f'Distribution of reads per species\nwith confidence score \u2265 {self.score}')
+		ax.set_title(f'Distribution of reads per species\nwith confidence score \u2265 {self.score}\n(file {self.file.split("/")[-1]})')
 		ax.set_xmargin(0.3)
 		
 		for i, v in enumerate(plt_counts):
@@ -102,7 +110,8 @@ class CountPlotter(Plotter):
 
 class ReadPlotter(Plotter):
 	'''A Plotter to plot per-file (handled in main) read confidence distributions'''
-	def __init__(self, outdir, file, rcl, other_co=0, drop=0, score=0):
+	def __init__(self, outdir, file, rcl, other_co=9, drop=1, score=0):
+		# NOTE set cutoff of minimum reads to 9 and drop to 1 now
 		super().__init__(outdir, file, other_co, drop, score)
 		# a list of ReadRecord objects
 		self.rcl = rcl
@@ -138,7 +147,7 @@ class ReadPlotter(Plotter):
 
 			# concatenate all lists of values from species for which the length of the list is shorter than other_co=0
 			if len(species[s]['scores']) <= self.other_co:
-				species['Other']['scores'] += species[s]['scores']
+				# species['Other']['scores'] += species[s]['scores'] # INFO removed this after KeyError: 'Other'
 				try:
 					species['Other']['scores'] += species[s]['scores']
 				except KeyError:
@@ -154,8 +163,8 @@ class ReadPlotter(Plotter):
 		if 'Other' in species.keys():
 			species['Other']['median'] = round(median(species[s]['scores']), 2)
 
-		# FIXME All should always be the first plot
-		# FIXME All median does not seem to be correct (too many added? or not enough added?)
+		# FIXME 'All' should always be the first plot
+		# FIXME 'All' median does not seem to be correct (too many added? or not enough added?). Could be correct though but double check.
 
 		# sort species by length of scores list
 		species = dict(sorted(species.items(), key=lambda e: len(e[1]['scores']), reverse=True))

@@ -143,14 +143,32 @@ class FileReader:
 			raise TypeError(f'INTERNAL ERROR: Cannot call method readKReport() on a file with ftype {self.ftype}! ftype "rep" expected!')
 
 		report = {}
+		gtdb = {} # We fill this with S1 lines instead of S lines in case we are dealing with a GTDB input file
 		f, form  = self._readTabSep(message='Kraken report')
 		level = form - 3
 		tax_col = form - 2
 		spec_col = form - 1
+		check_S_gtdb = set()
 		for line in f:
 			if line[level] == 'S':
 				taxid, species = line[tax_col], line[spec_col]
 				report[taxid] = species
+				# If we are dealing with a GTDB file the assumption is that the unique counts at S level are all 0 and the species names are in S1 lines
+				# We store these in a set and take the union everytime we add one then later check that there is only one element in it and that is 0
+				check_S_gtdb = check_S_gtdb.union({line[2]})
+			elif line[level] == 'S1':
+				taxid, species = line[tax_col], line[spec_col]
+				gtdb[taxid] = species
+
+		if {'0'} == check_S_gtdb and len(gtdb) == len(report):
+			msg(f'WARNING: It appears that your input files are derived from the GTDB database, using S1 lines of the Kraken report to match taxids to species names.')
+			# keep the keys from gtdb but keep the values from report.
+			# We can do this because dicts are ordered since Python 3.7 (and assume S1 lines always follow S line in the Kraken report)
+			gtdb_keys = list(gtdb)
+			rep_values = list(report.values())
+			report = {}
+			for i,k in enumerate(gtdb_keys):
+				report[k] = rep_values[i]
 
 		return report
 
@@ -169,6 +187,7 @@ class Counter:
 		result = []
 
 		for kl in kll:
+
 			try:
 				species[kl.taxid]['read_count'] += 1
 				species[kl.taxid]['scores'].append(kl.score)
@@ -179,14 +198,15 @@ class Counter:
 										'scores' : [kl.score],
 										'name' : specmap[kl.taxid]
 										}
-				except KeyError:
+				except KeyError as e:
 					if specmap.get(kl.taxid, None):
-							err('Another KeyError while discarding non-species reads has occurred that should not occur. Exiting.')
+							err(f'Another KeyError {e.args[0]} while discarding non-species reads has occurred that should not occur. Exiting.')
 
 		for tx in species:
 			name = species[tx]['name']
 			read_count = species[tx]['read_count']
 			median_score = round(median(species[tx]['scores']), 3)
+			# TODO do we need species name and kspec? kspec is taxid so we should never have to override it if we have species
 			cr = CountRecord(file=file, truespec=truespec, kspec=tx, species=name, read_count=read_count, median_score=median_score)
 			result.append(cr)
 
@@ -244,11 +264,11 @@ class Record:
 
 class CountRecord(Record):
 	'''A class that represents a species-read_count object'''
-	def __init__(self, file, truespec, kspec, species, read_count, median_score):
+	def __init__(self, file, truespec, kspec, species, read_count, median_score=0):
 		super().__init__(file, truespec, kspec)
 		self.species = species
 		self.read_count = read_count
-		self.median_score = median_score
+		self.median_score = median_score # NOTE Set this as default 0 
 
 	def join(self, sep):
 		return sep.join([self.file, self.truespec, self.kspec, str(self.read_count), str(self.median_score)])

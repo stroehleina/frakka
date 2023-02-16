@@ -21,6 +21,8 @@ def set_parsers():
 	parser.add_argument('--sp_only', '-spo', help='NOT IMPLEMENTED Report only matches to true/known species (--species) option') # TODO
 	parser.add_argument('--fof', '-f', help='Tab-separated file of one (-k, -o, -sp)-tuple per line')
 	parser.add_argument('--score', '-s', help='Confidence score threshold, only reads / counts higher than this score are reported', default=0)
+	# TODO --score 0-1-0.1
+	# Create a plot from score 0 to 1 in 0.1 increments
 	parser.add_argument('--counts', '-c', action='store_true', default=False, help='Report total counts per species with score > --score / -s instead of per-read reporting')
 	parser.add_argument('--taxid', '-t', action='store_true', default=False, help='Species input and output are NCBI taxIDs instead of species names')
 	parser.add_argument('--plot', '-p', action='store_true', default=False, help='Plot distribution of score per species')
@@ -104,7 +106,6 @@ def main():
 		kll = krak.readKraken()
 
 		if args.counts:
-			# Counter.getCounts() returns a list of CountRecord objects
 			counts = Counter.getCounts(specmap=specmap, kll=kll, truespec=truespec, file=f[1])
 
 			for cr in counts:
@@ -115,7 +116,7 @@ def main():
 
 			if args.plot:
 				#TODO implement other_co=0 and drop=0
-				cp = CountPlotter(outdir=args.directory, file=f[0], counts=counts, score=args.score)
+				cp = CountPlotter(outdir=outdir, file=f[0], counts=counts, score=args.score)
 				cp.plot()
 
 		else:
@@ -139,7 +140,7 @@ def main():
 					scores.append(rec)
 
 			if args.plot:
-				rp = ReadPlotter(outdir=args.directory, file=f[0], rcl=scores, score=args.score)
+				rp = ReadPlotter(outdir=outdir, file=f[0], rcl=scores, score=args.score)
 				rp.plot()
 
 		outlst += rec_lst
