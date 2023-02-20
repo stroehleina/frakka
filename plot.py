@@ -14,17 +14,18 @@ err=Logger.err
 
 class Plotter:
 	'''A class for creating plots from frakka output objects'''
-	def __init__(self, outdir, file, other_co, drop, score):
+	def __init__(self, outdir, file, other_co, drop, score, prefix):
 		self.outdir = outdir
 		self.file = file
 		self.other_co = other_co
 		self.drop = drop
 		self.score = score
+		self.prefix = prefix
 
 class CountPlotter(Plotter):
 	'''A Plotter to plot per-species confidence summaries'''
-	def __init__(self, outdir, file, counts, other_co=90, drop=0, score=0):
-		super().__init__(outdir, file, other_co, drop, score)
+	def __init__(self, outdir, file, counts, other_co, drop, score, prefix):
+		super().__init__(outdir, file, other_co, drop, score, prefix)
 		self.counts = counts
 
 	def plot(self):
@@ -72,13 +73,13 @@ class CountPlotter(Plotter):
 		max_name = len(sorted(plot_lst, key=lambda e: len(e['name']), reverse=True)[0]['name'])
 
 		plt.rcdefaults()
-		msg(f'590 pixels corresponds to:')
-		msg(f'5 + 0.1 * max_name = {5 + 0.1 * max_name}')
-		msg(f'80275 pixels corresponds to:')
-		msg(f'0.25 * len(plot_lst) = {0.25 * len(plot_lst)}')
+		# msg(f'590 pixels corresponds to:')
+		# msg(f'5 + 0.1 * max_name = {5 + 0.1 * max_name}')
+		# msg(f'80275 pixels corresponds to:')
+		# msg(f'0.25 * len(plot_lst) = {0.25 * len(plot_lst)}')
 
 		# maximum is 65536 pixels
-		# TODO reduced dpi?
+		# NOTE reduced dpi?
 
 		ax = plt.subplots(figsize=(5 + 0.1 * max_name, 0.25 * len(plot_lst)))[1]
 		ax.set_xbound(lower=1, upper=max_rc)
@@ -102,7 +103,7 @@ class CountPlotter(Plotter):
 		plt.subplots_adjust(left=0.4)
 		
 		# chop file ending, replace all "." by "__" and add .pdf
-		outfile = '__'.join(self.file.split('/')[-1].split('.')[:-1]) + f'_c-o_{self.score}.pdf'
+		outfile = self.prefix + 'counts_' + '__'.join(self.file.split('/')[-1].split('.')[:-1]) + f'_c-o_{self.score}.pdf'
 
 		figpath = '/'.join([self.outdir, outfile])
 		msg(f'Saving filtered read counts-per-species plot for file {self.file} to {figpath}')
@@ -110,9 +111,8 @@ class CountPlotter(Plotter):
 
 class ReadPlotter(Plotter):
 	'''A Plotter to plot per-file (handled in main) read confidence distributions'''
-	def __init__(self, outdir, file, rcl, other_co=9, drop=1, score=0):
-		# NOTE set cutoff of minimum reads to 9 and drop to 1 now
-		super().__init__(outdir, file, other_co, drop, score)
+	def __init__(self, outdir, file, rcl, other_co, drop, score, prefix):
+		super().__init__(outdir, file, other_co, drop, score, prefix)
 		# a list of ReadRecord objects
 		self.rcl = rcl
 		
@@ -192,7 +192,7 @@ class ReadPlotter(Plotter):
 			ax.axvline(spec_median.iloc[i]['median'], color='red')
 
 		# chop file ending, replace all "." by "__" and add .pdf
-		outfile = '__'.join(self.file.split('/')[-1].split('.')[:-1]) + f'_species_distr_{self.score}.pdf'
+		outfile = self.prefix + 'reads_' + '__'.join(self.file.split('/')[-1].split('.')[:-1]) + f'_species_distr_{self.score}.pdf'
 
 		figpath = '/'.join([self.outdir, outfile])
 		msg(f'Saving filtered distribution plots for {len(axes)} species (including "All" and "Other" categories, if specified) for file {self.file} to {figpath}')

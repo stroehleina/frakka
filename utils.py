@@ -25,7 +25,10 @@ class DirHandler:
 	'''A class for checking / creating output directories'''
 
 	def __init__(self, argsdir):
-		self.dir = '/'.join([os.getcwd(), argsdir])
+		if argsdir[0] == "/":
+			self.dir = argsdir
+		else:
+			self.dir = '/'.join([os.getcwd(), argsdir])
 		# TODO make this a list of dirs so we can create a separate directory for each pair of files?
 
 	def makeOutputDir(self):
@@ -63,8 +66,11 @@ class FileReader:
 
 	def _checkPath(self):
 		'''A function to check that a FileReader object has a correct path'''
-		# TODO if absolute path is given, make sure you aren't concatenating cwd and an absolute path
-		path = '/'.join([self.cwd, self.file])
+		if self.file[0] == "/":
+			path = self.file
+		else:
+			path = '/'.join([self.cwd, self.file])
+
 		if not os.path.exists(path):
 			err(f'File {path} does not exist! Exiting.')
 		return path
@@ -206,7 +212,7 @@ class Counter:
 			name = species[tx]['name']
 			read_count = species[tx]['read_count']
 			median_score = round(median(species[tx]['scores']), 3)
-			# TODO do we need species name and kspec? kspec is taxid so we should never have to override it if we have species
+			# NOTE do we need species name and kspec? kspec is taxid so we should never have to override it if we have species
 			cr = CountRecord(file=file, truespec=truespec, kspec=tx, species=name, read_count=read_count, median_score=median_score)
 			result.append(cr)
 
@@ -286,10 +292,14 @@ class ReadRecord(Record):
 class Output:
 	'''A class for output objects (lines to be printed)'''
 
-	def __init__(self, record, isHeader=False, sep='\t', counts=False, useTaxid=False):
+	def __init__(self, record, isHeader=False, sep='\t', counts=False, useTaxid=False, tofile=None, outdir=None, prefix=None):
 		self.isHeader = isHeader
-		self.useTaxid = useTaxid
 		self.sep = sep
+		self.counts = counts
+		self.useTaxid = useTaxid
+		self.tofile=tofile
+		self.outdir=outdir
+		self.prefix=prefix
 
 		if self.isHeader:
 			self.kspec = "K_spec"
@@ -299,7 +309,7 @@ class Output:
 				self.kspec = self.kspec + "_taxid"
 				self.truespec = self.truespec + "_taxid"
 
-			if counts:
+			if self.counts:
 				self.record = self.sep.join(['file', self.truespec, self.kspec, 'read_count', 'median_score'])
 			else:
 				self.record = self.sep.join(['file', self.truespec, self.kspec, 'read_id', 'score'])
@@ -307,5 +317,13 @@ class Output:
 			self.record = record
 
 	def printRecord(self):
-		print(self.record)
-		# TODO file destination
+		if not self.tofile:
+			print(self.record, file=sys.stdout)
+		else:
+			if self.counts:
+				filename = self.outdir + "/" + self.prefix + 'counts_by_species.tsv'
+			else:
+				filename = self.outdir + "/" + self.prefix + 'per_read_confidence.tsv'
+
+			with open(filename, 'w') as f:
+				print(self.record, file=f)

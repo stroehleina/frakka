@@ -27,9 +27,11 @@ def set_parsers():
 	parser.add_argument('--taxid', '-t', action='store_true', default=False, help='Species input and output are NCBI taxIDs instead of species names')
 	parser.add_argument('--plot', '-p', action='store_true', default=False, help='Plot distribution of score per species')
 	parser.add_argument('--directory', '-d', default=f'frakka_{re.sub(":", "_", datetime.now().isoformat(sep="_", timespec="seconds"))}', help='Specify output directory')
-	parser.add_argument('--prefix', '-x', default='.', help='NOT IMPLEMENTED Specify output file prefix') # TODO 
+	parser.add_argument('--prefix', '-x', default='', help='Specify prefix for output files')
+	parser.add_argument('--tofile', '-tf', action='store_true', default=False, help='Print the output to a file in the specified output folder instead of STDOUT')
 	parser.add_argument('--delim', '-del', default='\t', help='Specify output file delimiter')
-	# TODO add --minreads argument
+	parser.add_argument('--minreads', '-m', default=0, help='Specify the minimum number of reads per species (filters low-abundance species)')
+	parser.add_argument('--groupother', '-g', default=0, help='Group all species with fewer than the specified number of reads into an "Other" group for plotting')
 
 	args = parser.parse_args()
 	return args, parser
@@ -40,11 +42,14 @@ def main():
 	err = Logger.err
 
 	args, parser = set_parsers()
+
+	if args.prefix != '':
+		args.prefix += '_'
+
 	file_s = []
 	k_files = {args.kreport, args.kout}
 
 	# Creating or checking output directory
-	# TODO catch outdir == "-" --> textfiles to STDOUT and plots to cwd
 	outdir = DirHandler(args.directory).makeOutputDir()
 
 	try:
@@ -115,8 +120,7 @@ def main():
 				rec_lst.append(cr.join(args.delim))
 
 			if args.plot:
-				#TODO implement other_co=0 and drop=0
-				cp = CountPlotter(outdir=outdir, file=f[0], counts=counts, score=args.score)
+				cp = CountPlotter(outdir=outdir, file=f[0], counts=counts, other_co=args.groupother, drop=args.minreads, score=args.score, prefix=args.prefix)
 				cp.plot()
 
 		else:
@@ -140,20 +144,18 @@ def main():
 					scores.append(rec)
 
 			if args.plot:
-				rp = ReadPlotter(outdir=outdir, file=f[0], rcl=scores, score=args.score)
+				rp = ReadPlotter(outdir=outdir, file=f[0], rcl=scores, other_co=groupother, drop=args.minreads, score=args.score, prefix=args.prefix)
 				rp.plot()
 
 		outlst += rec_lst
 
-
 	for c,o in enumerate(outlst):
 		if c == 0:
-			header = Output(record=None, isHeader=True, sep=args.delim, counts=args.counts, useTaxid=args.taxid)
+			header = Output(record=None, isHeader=True, sep=args.delim, counts=args.counts, useTaxid=args.taxid, tofile=args.tofile, outdir=outdir, prefix=args.prefix)
 			header.printRecord()
 
-		out = Output(record=o, sep=args.delim, useTaxid=args.taxid)
+		out = Output(record=o, sep=args.delim, counts=args.counts, useTaxid=args.taxid, tofile=args.tofile, outdir=outdir, prefix=args.prefix)
 		out.printRecord()
-		# TODO define output directory for printing output lines
 
 	msg('Done. Thank you for using frakka. Please cite https://github.com/stroehleina/frakka')
 
