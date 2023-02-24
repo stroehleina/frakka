@@ -41,9 +41,11 @@ def main():
 	msg = Logger.msg
 	err = Logger.err
 
+	msg(f'Running command: {" ".join(sys.argv)}')
+
 	args, parser = set_parsers()
 
-	if args.prefix != '':
+	if args.prefix:
 		args.prefix += '_'
 
 	file_s = []
@@ -144,18 +146,31 @@ def main():
 					scores.append(rec)
 
 			if args.plot:
-				rp = ReadPlotter(outdir=outdir, file=f[0], rcl=scores, other_co=groupother, drop=args.minreads, score=args.score, prefix=args.prefix)
+				rp = ReadPlotter(outdir=outdir, file=f[0], rcl=scores, other_co=args.groupother, drop=args.minreads, score=args.score, prefix=args.prefix)
 				rp.plot()
 
 		outlst += rec_lst
 
+	if not args.tofile:
+		fh = sys.stdout
+	else:
+		if args.counts:
+			filename = outdir + "/" + args.prefix + 'counts_by_species.tsv'
+			fh = open(filename, 'w')
+		else:
+			filename = outdir + "/" + args.prefix + 'per_read_confidence.tsv'
+			fh = open(filename, 'w')
+
 	for c,o in enumerate(outlst):
 		if c == 0:
-			header = Output(record=None, isHeader=True, sep=args.delim, counts=args.counts, useTaxid=args.taxid, tofile=args.tofile, outdir=outdir, prefix=args.prefix)
+			header = Output(record=None, isHeader=True, sep=args.delim, counts=args.counts, useTaxid=args.taxid, fh=fh)
 			header.printRecord()
 
-		out = Output(record=o, sep=args.delim, counts=args.counts, useTaxid=args.taxid, tofile=args.tofile, outdir=outdir, prefix=args.prefix)
+		out = Output(record=o, sep=args.delim, counts=args.counts, useTaxid=args.taxid, fh=fh)
 		out.printRecord()
+
+	if fh != sys.stdout:
+		fh.close()
 
 	msg('Done. Thank you for using frakka. Please cite https://github.com/stroehleina/frakka')
 

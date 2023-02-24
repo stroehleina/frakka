@@ -292,14 +292,12 @@ class ReadRecord(Record):
 class Output:
 	'''A class for output objects (lines to be printed)'''
 
-	def __init__(self, record, isHeader=False, sep='\t', counts=False, useTaxid=False, tofile=None, outdir=None, prefix=None):
+	def __init__(self, record, fh, isHeader=False, sep='\t', counts=False, useTaxid=False):
+		self.fh = fh
 		self.isHeader = isHeader
 		self.sep = sep
 		self.counts = counts
 		self.useTaxid = useTaxid
-		self.tofile=tofile
-		self.outdir=outdir
-		self.prefix=prefix
 
 		if self.isHeader:
 			self.kspec = "K_spec"
@@ -317,13 +315,4 @@ class Output:
 			self.record = record
 
 	def printRecord(self):
-		if not self.tofile:
-			print(self.record, file=sys.stdout)
-		else:
-			if self.counts:
-				filename = self.outdir + "/" + self.prefix + 'counts_by_species.tsv'
-			else:
-				filename = self.outdir + "/" + self.prefix + 'per_read_confidence.tsv'
-
-			with open(filename, 'w') as f:
-				print(self.record, file=f)
+		print(self.record, file=self.fh)

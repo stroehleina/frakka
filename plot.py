@@ -17,8 +17,8 @@ class Plotter:
 	def __init__(self, outdir, file, other_co, drop, score, prefix):
 		self.outdir = outdir
 		self.file = file
-		self.other_co = other_co
-		self.drop = drop
+		self.other_co = int(other_co)
+		self.drop = int(drop)
 		self.score = score
 		self.prefix = prefix
 
@@ -137,34 +137,37 @@ class ReadPlotter(Plotter):
 
 			# remove species for which the length of the list of values is shorter than self.drop (--minreads)
 			if len(species[s]['scores']) <= self.drop:
-				# msg(f'Length of the score list for species {s} is {len(species[s]["scores"])}. Deleting record.')
+				msg(f'Species {s} has {len(species[s]["scores"])} reads (<= {self.drop}). Skipping record.')
 				del species[s]
+				continue
 			else:
 				try:
 					species['All']['scores'] += species[s]['scores']
-				except KeyError:
-					species['All'] = {'scores' : species[s]['scores']}
+				except KeyError as e:
+					species['All'] = {'scores' : species[s]['scores'].copy()}
+
+				# msg(f'Adding {len(species[s]["scores"])} records of species {s} to the total ("All").')
+				# msg(f'Total number of All: {len(species["All"]["scores"])}')
 
 			# concatenate all lists of values from species for which the length of the list is shorter than other_co=0
 			if len(species[s]['scores']) <= self.other_co:
-				# species['Other']['scores'] += species[s]['scores'] # INFO removed this after KeyError: 'Other'
 				try:
 					species['Other']['scores'] += species[s]['scores']
-				except KeyError:
-					species['Other'] = {'scores' : species[s]['scores']}
+				except KeyError as e:
+					species['Other'] = {'scores' : species[s]['scores'].copy()}
+
+				# msg(f'Adding {len(species[s]["scores"])} records to "Other".')
+				# msg(f'Total number of "Other": {len(species["Other"]["scores"])}')
 
 			species[s]['median'] = round(median(species[s]['scores']), 2)
 
-		if 'All' in species.keys():
-			species['All']['median'] = round(median(species[s]['scores']), 2)
-		else:
+
+		if 'All' not in species.keys():
 			err(f'No reads were added for plotting, try reducing the minimal required read count {self.drop} per species (set via --minreads).')
+		species['All']['median'] = round(median(species['All']['scores']), 2)		
 
 		if 'Other' in species.keys():
-			species['Other']['median'] = round(median(species[s]['scores']), 2)
-
-		# FIXME 'All' should always be the first plot
-		# FIXME 'All' median does not seem to be correct (too many added? or not enough added?). Could be correct though but double check.
+			species['Other']['median'] = round(median(species['Other']['scores']), 2)
 
 		# sort species by length of scores list
 		species = dict(sorted(species.items(), key=lambda e: len(e[1]['scores']), reverse=True))
